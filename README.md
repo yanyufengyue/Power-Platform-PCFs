@@ -1,2 +1,2 @@
-Demo of the control in YouTube
-https://youtu.be/Rqk1TEZ8SHM
+#Power Platform PCFs
+#Please check the README file in each control folder
