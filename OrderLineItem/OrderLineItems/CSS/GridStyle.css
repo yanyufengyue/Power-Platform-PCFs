@@ -1,0 +1,15 @@
+.full-width-grid {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.grid-item {
+    flex: 1; /* This makes the grid item grow and shrink based on available space */
+}
+.ms-List-contentWrapper .ms-List-cell:nth-child(odd) {
+    background-color: #f2f2f2; /* Light gray background for odd rows */
+}
+  
+.ms-List-contentWrapper .ms-List-cell:nth-child(even) {
+background-color: hsl(128, 90%, 19%); /*  background for even rows */
+}
