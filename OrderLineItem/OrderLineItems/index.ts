@@ -92,7 +92,7 @@ export class OrderLineItems implements ComponentFramework.ReactControl<IInputs, 
                 const globalContext = Utility.getGlobalContext();
                 const serverURL = globalContext.getClientUrl();
         
-                const Query = "EntityDefinitions(LogicalName='"+entityLogicName +"')/Attributes(LogicalName='"+attributeLoficalName+"')/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options)";
+                const Query = "EntityDefinitions(LogicalName='"+entityLogicName +"')/Attributes(LogicalName='"+attributeLoficalName+"')/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options),GlobalOptionSet($select=Options)";
                 const req = new XMLHttpRequest();
                 req.open("GET", serverURL + "/api/data/v9.2/" + Query, true);
                 req.setRequestHeader("Accept", "application/json");
@@ -115,8 +115,21 @@ export class OrderLineItems implements ComponentFramework.ReactControl<IInputs, 
                                     });
                                 });
                                 OptionMetaData.shift();
-                                resolve(OptionMetaData);
                             }
+                            else if (data !== null && data.GlobalOptionSet !== null && data.GlobalOptionSet !== undefined) {
+                                data.GlobalOptionSet.Options.forEach((option:any) => {
+                                    OptionMetaData.push( {
+                                        value: option.Value,
+                                        label: option.Label.UserLocalizedLabel.Label,
+                                        color: option.Color
+                                    });
+                                });
+                                OptionMetaData.shift();                               
+                            }
+                            else{
+                                //do nothing
+                            }
+                            resolve(OptionMetaData);
                         }
                     }
                 };

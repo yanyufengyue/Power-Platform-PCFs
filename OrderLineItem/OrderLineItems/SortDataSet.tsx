@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DetailsList, IDragDropEvents ,IDragDropContext, Selection, DetailsRow, PrimaryButton, IDetailsListStyles, DetailsListLayoutMode, SelectionMode, Link} from '@fluentui/react';
+import { DetailsList, IDragDropEvents ,IDragDropContext, Selection, DetailsRow, PrimaryButton, IDetailsListStyles, DetailsListLayoutMode, SelectionMode, Link, styled} from '@fluentui/react';
 import { getTheme, mergeStyles} from '@fluentui/react/lib/Styling';
 "use strict";
 
@@ -28,6 +28,15 @@ export const sortDataSet = React.memo(({dataSet, sequenceColumn, optionSetMetada
       "use strict";
       const selectedItems = selection.getSelection()
       setSelectedRecords(selectedItems);
+      if(selectedItems.length === 0){
+        dataSet?.clearSelectedRecordIds();
+      }else{
+        const itemIds: any = [];
+        selectedItems.forEach((item: any) =>{
+          itemIds.push(item.Key);
+        });
+        dataSet?.setSelectedRecordIds(itemIds);
+      }
     }
   })
 
@@ -206,33 +215,14 @@ export const sortDataSet = React.memo(({dataSet, sequenceColumn, optionSetMetada
           })
         };
         break;
-      case "delete":
+      case "increaserow":
         return () =>{
           "use strict";
-          if(selectedRecords?.length > 0){
-            const promises: any[] = [];
-            Xrm.Utility.showProgressIndicator("Deleting in progress...");
-            selectedRecords.forEach((record: any)=>{
-              promises.push(new Promise((resolve,reject)=>{
-                Xrm.WebApi.deleteRecord(record.raw.getNamedReference()._etn,record.raw.getNamedReference()._id).then(
-                  function onFullfilled(){
-                    resolve("OK");
-                  },
-                  function error(error){                             
-                    reject(error);
-                  }             
-                );
-              }));
-              
-            });
-            Promise.all(promises).then(()=>{Xrm.Utility.closeProgressIndicator()});
-          }
-        }
-        break;
-      case "loadall":
-        return () => {
-          "use strict";
-          if (dataSet?.paging.hasNextPage) dataSet.paging.loadNextPage();
+          const firstRowHeight = document.getElementById('aa')?.querySelector('.ms-DetailsRow')?.getBoundingClientRect().height;
+          const contentWrapper = document.getElementById('aa')?.querySelector('.ms-DetailsList-contentWrapper')?.getBoundingClientRect().height;
+          if(firstRowHeight === undefined || contentWrapper === undefined) return;
+          const currentRowCount = contentWrapper! / firstRowHeight!;
+          (document.getElementById('aa')?.querySelector('.ms-DetailsList-contentWrapper') as HTMLElement).style.height = ((firstRowHeight as number) * (currentRowCount + 1)).toString()+"px";
         }
         break;
       case "loadnextpage":
@@ -298,7 +288,7 @@ export const sortDataSet = React.memo(({dataSet, sequenceColumn, optionSetMetada
         <div style={{"float":"left","width":"50%"}}>
           <PrimaryButton id="updateorder" text="Update Order" onClick={onClickReorderButton("updateorder")} style={{"padding":"1px"}}/>
           <PrimaryButton id ="addnew" text="Add New" onClick={onClickReorderButton("addnew")} style={{"margin":"0px 2px 0px 2px", "padding":"1px"}}/>
-          <PrimaryButton id ="delete" text="Delete" disabled={!(selectedRecords?.length > 0)} onClick={onClickReorderButton("delete")} style={{"padding":"1px"}}/>
+          <PrimaryButton id ="increaserow" text="Increase Row" onClick={onClickReorderButton("increaserow")} style={{"padding":"1px"}}/>
         </div>
         <div style={{"float":"right","width":"50%"}}>  
           <PrimaryButton id ="loadnextpage" disabled={!dataSet?.paging.hasNextPage} text="Load Next Page" onClick={onClickReorderButton("loadnextpage")} style={{"float":"right","margin":"0px 0px 0px 10px", "padding":"1px"}}/>
