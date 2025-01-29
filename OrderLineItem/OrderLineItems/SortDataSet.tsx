@@ -41,10 +41,6 @@ export const sortDataSet = React.memo(({dataSet, sequenceColumn, optionSetMetada
   })
 
   React.useEffect(()=>{
-    dataSet?.refresh();
-  },[optionSetMetadata])
-
-  React.useEffect(()=>{
     "use strict";
     setColums(dataSet?.columns.map((column) =>{
       return{

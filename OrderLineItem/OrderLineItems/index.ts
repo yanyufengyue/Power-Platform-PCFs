@@ -35,14 +35,13 @@ export class OrderLineItems implements ComponentFramework.ReactControl<IInputs, 
         this.sequenceColumnTarget = context.parameters.DataSet.columns.find((column)=>column.alias ==="OrderColumn");
         this.optionSetColorDefined = context.parameters.DataSet.columns.find((column)=>column.alias ==="OptionSetColorDefined");
         
-        // Method for set all varaibles that handled in Async operation, and call the updateView method
+        // Method for set all varaibles that handling Async operation
         this.SetVariableValues();
     }
     
     async SetVariableValues(): Promise<void> {
         "use strict";
         this.optionSetColorDefinedMetadata = await this.GetAttributeMetadata(this.entityType,this.optionSetColorDefined.name);
-        this.getOutputs();
     }
 
     /**
