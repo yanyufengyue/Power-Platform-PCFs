@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { DetailsList, DetailsListLayoutMode, IDetailsListStyles, Link, SelectionMode, Selection, Stack, IconButton, IDragDropEvents, IDragDropContext, mergeStyles } from '@fluentui/react';
+import { DetailsList, DetailsListLayoutMode, IDetailsListStyles, Link, SelectionMode, Selection, Stack, IconButton, IDragDropEvents, IDragDropContext, mergeStyles, Modal, Toggle, FontIcon, values, StackItem } from '@fluentui/react';
 import * as Helper from './Helper';
 import { getTheme } from '@fluentui/react/lib/Styling';
+import { useBoolean } from '@fluentui/react-hooks';
 "use strict";
 
 type Dataset = ComponentFramework.PropertyTypes.DataSet;
@@ -22,6 +23,8 @@ export const gridDataset = React.memo(({dataset, optionsetMetadata, initialPageN
   const [selectedRows, setSelectedRows] = React.useState<any>([]);
   const [showSelections, setShowSelections] = React.useState<string>();
   const [pageType, setPageType] = React.useState(Xrm.Utility.getPageContext().input.pageType);
+  const [isSettingModalOpen, {setTrue: showSettingModal, setFalse: hideSettingModal}] = useBoolean(false);
+  const [openRecordinSidePane, setOpenRecordinSidePane] = React.useState<boolean>();
   const gridDivId = 'fancyGrid';
   const footerStackId = 'footerStack';
   let draggedItem:any;
@@ -31,6 +34,7 @@ export const gridDataset = React.memo(({dataset, optionsetMetadata, initialPageN
   // Re-render the grid records when the currentPage number is updated with new values
   React.useEffect(()=>{dataset.paging.loadExactPage(currentPage);}, [currentPage]);
   React.useEffect(()=>{if(selectedRows?.length > 0){setShowSelections('inline')} else{setShowSelections('none')}}, [selectedRows]);
+  React.useEffect(()=>{if(!openRecordinSidePane)Xrm.App.sidePanes.getAllPanes().forEach((Pane)=>{Pane.close()})},[openRecordinSidePane])
   React.useEffect(()=>{
     "use strict";
     setColumns(dataset?.columns.map((column)=>{
@@ -137,7 +141,6 @@ export const gridDataset = React.memo(({dataset, optionsetMetadata, initialPageN
   const selection = new Selection({
     onSelectionChanged: () =>{
       "use strict";
-      
       const selectedItems = selection.getSelection()
       if(selectedItems.length === 0) dataset?.clearSelectedRecordIds();
       const itemIds: any = [];
@@ -208,23 +211,85 @@ export const gridDataset = React.memo(({dataset, optionsetMetadata, initialPageN
       dataset?.openDatasetItem(item.raw.getNamedReference());
     }
     else{
-      const pageInput: Xrm.Navigation.PageInputEntityRecord = {
-        pageType: "entityrecord",
-        entityName: item.raw.getNamedReference()._etn,
-        entityId: item.raw.getNamedReference()._id //replace with actual ID
-      };
-      const navigationOptions: Xrm.Navigation.NavigationOptions = {
-          target: 2,
-          height: {value: 80, unit:"%"},
-          width: {value: 70, unit:"%"},
-          position: 1
-      };
-      Xrm.Navigation.navigateTo(pageInput, navigationOptions);
+      if(openRecordinSidePane){
+        //Open record in SidePane
+        if(Xrm.App.sidePanes.getPane(item.raw.getNamedReference()._id)){
+          Xrm.App.sidePanes.state=1;
+          Xrm.App.sidePanes.getPane(item.raw.getNamedReference()._id)?.select();
+        }else{
+          Xrm.App.sidePanes.createPane(
+            {
+              title: `${item.raw._getColumns()[0].displayName}: ${item.raw.getValue(item.raw._getColumns()[0].name)}`,
+              imageSrc: 'WebResources/accessChecker_icon',
+              hideHeader: true,
+              canClose: true,
+              paneId: item.raw.getNamedReference()._id,
+              isSelected: true,
+              alwaysRender: true
+            }
+          ).then((pane) =>{
+            pane.navigate({        
+            pageType: "entityrecord",
+            entityName: item.raw.getNamedReference()._etn,
+            entityId: item.raw.getNamedReference()._id,})
+            }
+          ).catch((er)=>{ 
+            //Handle the error
+          });
+        }
+      }
+      else{
+        //Open record in Pop up
+        const pageInput: Xrm.Navigation.PageInputEntityRecord = {
+          pageType: "entityrecord",
+          entityName: item.raw.getNamedReference()._etn,
+          entityId: item.raw.getNamedReference()._id
+        };
+        const navigationOptions: Xrm.Navigation.NavigationOptions = {
+            target: 2,
+            height: {value: 80, unit:"%"},
+            width: {value: 70, unit:"%"},
+            position: 1
+        };
+        Xrm.Navigation.navigateTo(pageInput, navigationOptions);
+      }
     }
+  }
+
+  function onChangeOpenRecordinSidepane(ev: React.MouseEvent<HTMLElement>, checked?: boolean): void {
+    setOpenRecordinSidePane(checked);
   }
 
   return(
     <div id={gridDivId} style={{width: '100%'}}>
+      <Modal
+        titleAriaId='controlSettingModal'
+        isOpen={isSettingModalOpen}
+        >
+        <Stack horizontal>
+          <StackItem>
+            <h3 style={{color:'steelblue'}}>Control Settings</h3>
+          </StackItem>
+          <StackItem style={{float: 'right',flex:'auto'}}>
+            <IconButton
+              style={{float:'right'}}
+              iconProps={{iconName:'Cancel'}}
+              ariaLabel="Close popup modal"
+              title='Close the Settings'
+              onClick={hideSettingModal}
+            />
+          </StackItem>
+        </Stack>
+        <Toggle
+          label="Enable open record in SidePane"
+          checked={openRecordinSidePane}
+          onChange={onChangeOpenRecordinSidepane}
+          onText="Enabled"
+          offText="Disabled"
+          inlineLabel
+          disabled={pageType === "entitylist"}
+        />
+      </Modal>
       <DetailsList
         items={items}
         columns={columns}
@@ -240,6 +305,15 @@ export const gridDataset = React.memo(({dataset, optionsetMetadata, initialPageN
       <Stack id={footerStackId} horizontal style={{width: '100%'}}>
         <Stack.Item align='center' style={{width:'50%'}}>
           <Stack horizontal style={{float: 'left'}}>
+          <IconButton
+              autoFocus={false}
+              alt="Settings"
+              aria-label='Settings'
+              title='Settings'
+              iconProps={{ iconName: 'Settings' }}
+              disabled={false}
+              onClick={showSettingModal}
+            />
             <Stack.Item align='center'>
               <>Rows: {dataset.paging.totalResultCount === -1 ? '5000+' : dataset.paging.totalResultCount}</>
             </Stack.Item>
