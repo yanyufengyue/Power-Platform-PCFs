@@ -6,8 +6,8 @@
     "extends": [
       "eslint:recommended",
       "plugin:@typescript-eslint/recommended",
-      "plugin:react/recommended",
-      "plugin:promise/recommended"
+      "plugin:react/recommended"
+      //"plugin:promise/recommended"
     ],
     "globals": {
       "ComponentFramework": true
@@ -23,7 +23,8 @@
     ],
     "rules": {
       "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-explicit-any": "off"
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/always-return": "off"
     },
     "settings": {
       "react": {
