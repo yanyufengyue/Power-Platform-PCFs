@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { IInputs } from './generated/ManifestTypes';
-import { getNoteAttachment } from './helper';
+import { generateComboBoxOptions, getNoteAttachment } from './helper';
 import * as Papa from 'papaparse';
 import { generateGridData } from './setGridData';
 import { useBoolean } from '@fluentui/react-hooks';
-import { Checkbox, DefaultButton, Dropdown, IDropdownOption, IDropdownStyles, IStackTokens, Panel, Stack, StackItem } from '@fluentui/react';
+import { Checkbox, ComboBox, DefaultButton, Dropdown, IComboBox, IComboBoxOption, IDropdownOption, IDropdownStyles, IStackTokens, Panel, Stack, StackItem } from '@fluentui/react';
 
 export interface IDataControlProps {
   context: ComponentFramework.Context<IInputs>;
@@ -20,8 +20,11 @@ export const DataControl = React.memo(({context}:IDataControlProps): JSX.Element
   const [detailList, setDetailList] = React.useState<JSX.Element>();
   const [checkBoxes, setCheckBoxes] = React.useState<JSX.Element>();
   const [isOpen, { setTrue: openPanel, setFalse: dismissPanel }] = useBoolean(false);
-
-  const [option, setOption] = React.useState<IDropdownOption>();
+ 
+  const [comboBoxOptions, setCoboBoxOptions] = React.useState<IComboBoxOption[]>([]);
+  const [comBoSelectItems, setComboSelectedItems] = React.useState<IComboBoxOption[]>([]);
+  const [selectedComboKeys, setSelectedIComboKeys] = React.useState<string[]>([]);
+  const [optionSelected, setOptionSelected] = React.useState<IDropdownOption>();
   const dropdownStyles: Partial<IDropdownStyles> = {
     dropdown: { width: 300 },
   };
@@ -33,20 +36,30 @@ export const DataControl = React.memo(({context}:IDataControlProps): JSX.Element
     { key: 2, text: 'Asset Attributes' },
   ];
   function optionOnChange(event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number){
-    setOption(option);
+    setOptionSelected(option);
   }
-
+  function comboBoxOnChange (event: React.FormEvent<IComboBox>, option?: IComboBoxOption){
+    if (option) {
+      // If the option is already selected, remove it
+      if (comBoSelectItems.some((item) => item.key === option.key)) {
+        setComboSelectedItems(comBoSelectItems.filter((item) => item.key !== option.key));
+      } else {
+        setComboSelectedItems([...comBoSelectItems, option]);
+      }
+    }
+  }
   React.useEffect(()=>{
 
     const fetchAttachments = async () => {
-      const attachments = await getNoteAttachment(pageContext.input.entityId, context, option);
+      const attachments = await getNoteAttachment(pageContext.input.entityId, context, optionSelected);
       setNoteAttachments(attachments);
     };
 
-    if(option){
+    if(optionSelected){
+      // Get attachments
       fetchAttachments();
     }
-  },[option])
+  },[optionSelected])
 
   React.useEffect(()=>{
     if(noteAttachments){
@@ -60,6 +73,8 @@ export const DataControl = React.memo(({context}:IDataControlProps): JSX.Element
         skipEmptyLines: true, // Skip empty lines
         dynamicTyping: true, // Automatically converts types
       });
+      const myComboOptions = generateComboBoxOptions(noteAttachments);
+      setCoboBoxOptions(myComboOptions);
     }
   },[noteAttachments])
 
@@ -80,11 +95,11 @@ export const DataControl = React.memo(({context}:IDataControlProps): JSX.Element
   }, [parsedCSV]);
 
   React.useEffect(()=>{
-    if(parsedCSV && gridColumn){
-      const itemList =generateGridData(parsedCSV, gridColumn);
+    if(noteAttachments && gridColumn && comBoSelectItems){
+      const itemList =generateGridData(noteAttachments,comBoSelectItems,gridColumn);
       setDetailList(itemList);
     }
-  }, [gridColumn]);
+  }, [gridColumn, comBoSelectItems]);
 
   function _onChange(ev?: React.FormEvent<HTMLElement | HTMLInputElement>, isChecked?: boolean) {
     let updatedGridColumns: any = [...gridColumn];
@@ -124,13 +139,21 @@ export const DataControl = React.memo(({context}:IDataControlProps): JSX.Element
   <div style={{width: '100%'}}>
     <Stack verticalFill>
       <StackItem>
-        <Dropdown placeholder="Select an option" label="Select a table to explore" options={options} styles={dropdownStyles} onChange={optionOnChange} />
-        <DefaultButton text="Update Columns in View" onClick={openPanel} />
+        <Stack horizontal>
+          <StackItem>
+            <Dropdown placeholder="Select an option" label="Select a table to explore" options={options} styles={dropdownStyles} onChange={optionOnChange} />
+          </StackItem>
+          <StackItem>
+            <ComboBox label="Select files to view" multiSelect options={comboBoxOptions} onChange={comboBoxOnChange} />
+          </StackItem>
+          <StackItem style={{alignSelf:'end'}}>
+            <DefaultButton text="Update Columns in View" onClick={openPanel} />
+          </StackItem>
+        </Stack>
       </StackItem>
       <StackItem>
         <Stack horizontal>
-          <StackItem style={{width:'50%'}}>{detailList}</StackItem>
-          <StackItem style={{width:'50%'}}>{detailList}</StackItem>
+          {detailList}
         </Stack>
       </StackItem>
     </Stack>

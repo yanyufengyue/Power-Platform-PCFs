@@ -1,6 +1,6 @@
 import * as React from "react";
 import { IInputs } from "./generated/ManifestTypes";
-import { IDropdownOption } from "@fluentui/react";
+import { IComboBoxOption, IDropdownOption } from "@fluentui/react";
 
 export async function getNoteAttachment(neoProcessId:string, context: ComponentFramework.Context<IInputs>, option?: IDropdownOption) {
     //const [noteAttachment, setNoteAttachment] = React.useState<any>();
@@ -39,4 +39,13 @@ export async function getNoteAttachment(neoProcessId:string, context: ComponentF
             }
         );
     return attachments;
+}
+
+export function generateComboBoxOptions (noteAttachments: any){
+   const options:IComboBoxOption[] = noteAttachments.map((item: any)=>{
+        const fileName = item.filename;
+        const createdOn = item['createdon@OData.Community.Display.V1.FormattedValue'];
+        return({key:item.annotationid, text:fileName + ' - ' + createdOn,})
+    })
+    return options;
 }
