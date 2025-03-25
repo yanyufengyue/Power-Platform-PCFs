@@ -83,11 +83,11 @@ export const gridDataset = React.memo(({dataset, optionsetMetadata, initialPageN
     let componentUrl, link
     switch(column?.dataType){
       case 'Lookup.Simple':
-        componentUrl = "&pagetype=entityrecord&etn=" + item.raw._record.fields[column.fieldName].reference.etn + "&id="+item.raw._record.fields[column.fieldName].reference.id.guid;
+        componentUrl = "&pagetype=entityrecord&etn=" + item.raw._record.fields[column.fieldName]?.reference.etn + "&id="+item.raw._record.fields[column.fieldName]?.reference.id.guid;
         link = appUrl + componentUrl;
         return<Link href={link}>{item[column.fieldName]}</Link>
       case 'Lookup.Owner':
-        componentUrl = "&pagetype=entityrecord&etn=" + item.raw._record.fields[column.fieldName].reference.etn + "&id="+item.raw._record.fields[column.fieldName].reference.id.guid;
+        componentUrl = "&pagetype=entityrecord&etn=" + item.raw._record.fields[column.fieldName]?.reference.etn + "&id="+item.raw._record.fields[column.fieldName]?.reference.id.guid;
         link = appUrl + componentUrl;
         return<Link href={link}>{item[column.fieldName]}</Link>
       case 'OptionSet':
