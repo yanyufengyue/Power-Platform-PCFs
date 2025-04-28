@@ -208,8 +208,13 @@ async function getPrimaryColumn(entityLogicalName: string) {
 }
 
 async function getDisplayName(entityLogicalName: string, entityId: string, primaryField: string) {
-  const response: any = await Xrm.WebApi.retrieveRecord(entityLogicalName, entityId, `?$select=${primaryField}`);
-  return response[primaryField] || 'N/A';
+  try{
+    const response: any = await Xrm.WebApi.retrieveRecord(entityLogicalName, entityId, `?$select=${primaryField}`);
+    return response[primaryField] || 'N/A';
+  }catch(error){
+    return 'Record Deleted';
+  }
+
 }
 
 export function getModalContentStyles(){
@@ -271,3 +276,50 @@ export function getIconStyle(){
 
   return iconButtonStyles;
 }
+
+export const ChangeDataCell: React.FC<{
+  item: any;
+  column: any;
+  currentEntityAttributes: any;
+  entityOptionSetMetadata: any;
+  }> = ({ item, column, currentEntityAttributes, entityOptionSetMetadata }) => {
+  const [changeData, setChangeData] = React.useState<React.ReactNode>(null);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  
+  React.useEffect(() => {
+    const fetchChangeData = async () => {
+        setLoading(true);
+        if (!currentEntityAttributes?.value?.length || !entityOptionSetMetadata?.length) {
+            setChangeData(<>{item[column.fieldName]}</>);
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const result = await handleChangeDataAsync(
+                currentEntityAttributes,
+                item[column.fieldName],
+                entityOptionSetMetadata
+            );
+            setChangeData(result);
+        } catch (error) {
+            setChangeData(<span>Error fetching change data</span>);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchChangeData();
+}, [
+    item?.[column?.fieldName],
+    column?.fieldName,
+    currentEntityAttributes?.value?.length,
+    entityOptionSetMetadata?.length,
+]);
+
+  if (loading) {
+      return <span>Loading...</span>;
+  }
+
+  return <>{changeData}</>;
+};

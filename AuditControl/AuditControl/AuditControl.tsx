@@ -17,6 +17,7 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
     const [currentEntityAttributes, setCurrentEntityAttributes] = React.useState<any>();
     const [sortedEntityAttributes, setSortedEntityAttributes] = React.useState<any>();
     const [entityOptionSetMetadata, setEntityOptionSetMetadata] = React.useState<any[]>([]);
+    const [manyToOneRelationship, setManyToOneRelationship] = React.useState<any[]>([]);
     const [selectedRecords, setSelectedRecords] = React.useState<any>([]);
     const pageContext: any = Xrm.Utility.getPageContext();
     const appUrl = Xrm.Utility.getGlobalContext().getCurrentAppUrl();
@@ -53,7 +54,8 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
 
         //Xrm.Utility.getEntityMetadata(pageContext.input.entityName).then(function successCallback (response){setCurrentEntityAttributes(response)});
         const apiUrl = clientUrl + "/api/data/v9.0/EntityDefinitions(LogicalName='" + pageContext.input.entityName + "')";
-        fetch(apiUrl, {
+        const attrRefUrl = apiUrl + "/ManyToOneRelationships";
+        fetch(attrRefUrl, {
             method: "GET",
             headers: {
                 "Accept": "application/json",
@@ -65,6 +67,7 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
         .then(response => response.json())  // Parse the JSON response
         .then(data => {
             if (data) {
+                setManyToOneRelationship([...data.value]);
                 const attributesUrl = apiUrl + "/Attributes";
                 fetch(attributesUrl, {
                     method: "GET",
@@ -142,7 +145,7 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
     // Set columns and items
     React.useEffect(()=>{
         "use strict";
-        if(auditMetadata && auditDataSet){
+        if(auditMetadata && auditDataSet && entityOptionSetMetadata && currentEntityAttributes){
             setColumns((auditMetadata as any).Attributes.getAll().map((attribute: any)=>{
                 return{
                     name: attribute.attributeDescriptor.DisplayName,
@@ -165,7 +168,7 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
             });
             setItems(myItems);         
         }
-    }, [auditMetadata,auditDataSet])
+    }, [auditMetadata,auditDataSet, entityOptionSetMetadata, currentEntityAttributes])
 
     React.useEffect(()=>{
         "use strict";
@@ -251,27 +254,6 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
     const renderItemColumn = (item?: any, index?: number, column?: any) =>{
         "use strict";
         let componentUrl, link;
-        const [changeData, setChangeData] = React.useState<React.ReactNode>(null);
-        const [loading, setLoading] = React.useState<boolean>(false);
-    
-        React.useEffect(()=>{
-            if (column?.fieldName === 'changedata' && currentEntityAttributes) {
-                const fetchChangeData = async () => {
-                    setLoading(true);
-                    try {
-                        const result = await Helper.handleChangeDataAsync(currentEntityAttributes, item[column.fieldName], entityOptionSetMetadata);
-                        setChangeData(result); // Set fetched data
-                    } catch (error) {
-                        setChangeData(<span>Error fetching change data</span>);
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-    
-                fetchChangeData();
-            }
-        },[currentEntityAttributes, entityOptionSetMetadata])
-    
         switch(column?.dataType){
             case 'lookup':
                 componentUrl = "&pagetype=entityrecord&etn=" + item.raw["_"+column.fieldName+'_value@Microsoft.Dynamics.CRM.lookuplogicalname'] + "&id="+item.raw["_"+column.fieldName+'_value'];
@@ -286,11 +268,16 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
             case 'datetime':
                 return<>{item.raw[column.fieldName+'@OData.Community.Display.V1.FormattedValue']}</>
             default:
-                if(column.fieldName == 'changedata' && currentEntityAttributes && currentEntityAttributes.value.length > 0){
-                    if (loading) {
-                        return <span>Loading...</span>; // Show loading state
-                    }
-                    return <>{changeData}</>; // Display fetched change data
+                if(column.fieldName == 'changedata'){
+                    return (
+                        <Helper.ChangeDataCell
+                            key={`${item.id}-${column.fieldName}`}
+                            item={item}
+                            column={column}
+                            currentEntityAttributes={currentEntityAttributes}
+                            entityOptionSetMetadata={entityOptionSetMetadata}
+                        />
+                    );
                 }else{
                     return <>{item[column.fieldName]}</>;
                 }
@@ -319,13 +306,13 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
                     for (const seltAttr of selectedAttrs) {
                         if(seltAttr.LogicalName === e.logicalName){
                             if(e.oldValue){
-                                if(seltAttr.AttributeTypeName?.Value === "LookupType"){                                
-                                    return{[seltAttr.LogicalName+'@odata.bind']: '/'+e.oldValue.split(',')[0] +"s("+ e.oldValue.split(',')[1]+")"};                                    
-                                }else if(seltAttr.AttributeTypeName?.Value === "CustomerType"){
-                                    return{[seltAttr.SchemaName+'_'+ e.oldValue.split(',')[0]+'@odata.bind']: '/'+e.oldValue.split(',')[0] +"s("+ e.oldValue.split(',')[1]+")"};
+                                if(seltAttr.AttributeTypeName?.Value === "LookupType" || seltAttr.AttributeTypeName?.Value === "CustomerType"){      
+                                    const attributeReferencingMetadata = manyToOneRelationship.filter((attrRef:any) =>attrRef.ReferencingAttribute === seltAttr.LogicalName && attrRef.ReferencedEntity === e.oldValue.split(',')[0]);                          
+                                    return{[attributeReferencingMetadata[0].ReferencingEntityNavigationPropertyName + "@odata.bind"]: '/'+e.oldValue.split(',')[0] +"s("+ e.oldValue.split(',')[1]+")"};                                    
                                 }else if(seltAttr.AttributeTypeName?.Value === "OwnerType"){
-                                    return{[seltAttr.LogicalName+'@odata.bind']: '/'+e.oldValue.split(',')[0] +"s("+ e.oldValue.split(',')[1]+")"};
-                                }                                
+                                    const attributeReferencingMetadata = manyToOneRelationship.filter((attrRef:any) =>attrRef.ReferencingAttribute === seltAttr.LogicalName);                          
+                                    return{[attributeReferencingMetadata[0].ReferencingEntityNavigationPropertyName + "@odata.bind"]: '/'+e.oldValue.split(',')[0] +"s("+ e.oldValue.split(',')[1]+")"};         
+                                }                              
                                 else if(seltAttr.AttributeTypeName?.Value === "MoneyType"){
                                     return{[seltAttr.LogicalName]:parseFloat(e.oldValue)}
                                 }  
@@ -345,7 +332,16 @@ export const auditHistory = React.memo(({context}: IAuditControlProps): JSX.Elem
                                     return {[seltAttr.LogicalName] : e.oldValue};
                                 }
                             }else{
-                                return {[seltAttr.LogicalName] : null};
+                                if(seltAttr.AttributeTypeName?.Value === "LookupType" || seltAttr.AttributeTypeName?.Value === "CustomerType"){                                
+                                    const attributeReferencingMetadata = manyToOneRelationship.filter((attrRef:any) =>attrRef.ReferencingAttribute === seltAttr.LogicalName && attrRef.ReferencedEntity === e.newValue.split(',')[0]);
+                                    return{[attributeReferencingMetadata[0].ReferencingEntityNavigationPropertyName]: null};                                    
+                                } else if(seltAttr.AttributeTypeName?.Value === "OwnerType"){
+                                    const attributeReferencingMetadata = manyToOneRelationship.filter((attrRef:any) =>attrRef.ReferencingAttribute === seltAttr.LogicalName);
+                                    return{[attributeReferencingMetadata[0].ReferencingEntityNavigationPropertyName]: null}; 
+                                }
+                                else{
+                                    return {[seltAttr.LogicalName] : null};
+                                }    
                             }
                         }
                     }                   
